@@ -70,6 +70,17 @@ open class ImagePickerSheetController: UIViewController {
     
     fileprivate var supplementaryViews = [Int: PreviewSupplementaryView]()
     
+    public var backgroundColor: UIColor = UIColor(white: 0.0, alpha: 0.3961) {
+        didSet {
+            if let popoverController = popoverPresentationController {
+                popoverController.backgroundColor = backgroundColor
+                backgroundView.backgroundColor = .clear
+            } else {
+                backgroundView.backgroundColor = backgroundColor
+            }
+        }
+    }
+    
     lazy var backgroundView: UIView = {
         let view = UIView()
         view.accessibilityIdentifier = "ImagePickerSheetBackground"
@@ -220,6 +231,9 @@ open class ImagePickerSheetController: UIViewController {
         reloadMaximumPreviewHeight()
         reloadCurrentPreviewHeight(invalidateLayout: false)
         
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        
         // Filter out the assets that are too thin. This can't be done before because
         // we don't know how tall the images should be
         let minImageWidth = 2 * previewCheckmarkInset + (PreviewSupplementaryView.checkmarkImage?.size.width ?? 0)
@@ -293,7 +307,19 @@ open class ImagePickerSheetController: UIViewController {
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         
-        if popoverPresentationController == nil {
+        reloadMaximumPreviewHeight()
+        reloadCurrentPreviewHeight(invalidateLayout: true)
+        
+        let padding: CGFloat = 8.0
+        let sheetHeight = sheetController.preferredSheetHeight + padding
+        let sheetSize = CGSize(width: view.bounds.width, height: sheetHeight)
+        
+        if let popoverPresentationController = popoverPresentationController{
+            popoverPresentationController.backgroundColor = backgroundColor
+            backgroundView.backgroundColor = .clear
+            backgroundView.frame = CGRect(origin: .zero, size: sheetSize)
+        }
+        else {
             // Offset necessary for expanded status bar
             // Bug in UIKit which doesn't reset the view's frame correctly
             
@@ -303,20 +329,11 @@ open class ImagePickerSheetController: UIViewController {
             backgroundViewFrame.size.height += offset
             backgroundView.frame = backgroundViewFrame
         }
-        else {
-            backgroundView.frame = view.bounds
-        }
-        
-        reloadMaximumPreviewHeight()
-        reloadCurrentPreviewHeight(invalidateLayout: true)
-        
-        let sheetHeight = sheetController.preferredSheetHeight
-        let sheetSize = CGSize(width: view.bounds.width, height: sheetHeight)
         
         // This particular order is necessary so that the sheet is layed out
         // correctly with and without an enclosing popover
         preferredContentSize = sheetSize
-        sheetCollectionView.frame = CGRect(origin: CGPoint(x: view.bounds.minX, y: view.bounds.maxY - view.frame.origin.y - sheetHeight), size: sheetSize)
+        sheetCollectionView.frame = CGRect(origin: CGPoint(x: view.bounds.minX, y: view.bounds.maxY - view.frame.origin.y - sheetHeight + padding), size: sheetSize)
     }
     
     fileprivate func reloadCurrentPreviewHeight(invalidateLayout invalidate: Bool) {
